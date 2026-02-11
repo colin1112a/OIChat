@@ -1,0 +1,54 @@
+name: Build EXE
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build client.exe
+        run: >
+          pyinstaller --onefile --windowed
+          --name OIChat-Client
+          --icon client.ico
+          --add-data "client.ico;."
+          client.py
+
+      - name: Build server.exe
+        run: >
+          pyinstaller --onefile --console
+          --name OIChat-Server
+          server.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OIChat-Windows
+          path: |
+            dist/OIChat-Client.exe
+            dist/OIChat-Server.exe
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/OIChat-Client.exe
+            dist/OIChat-Server.exe
+          generate_release_notes: true

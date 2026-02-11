@@ -1,5 +1,0 @@
-rich
-pathlib
-qdarkstyle
-PyQt5
-winotify

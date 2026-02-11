@@ -1,0 +1,5 @@
+rich
+qdarkstyle
+PyQt5
+pyinstaller
+winotify; sys_platform == 'win32'

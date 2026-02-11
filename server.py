@@ -12,7 +12,7 @@ English:
 
 import json
 import socket, time
-from threading import Thread
+from threading import Thread, Lock
 import os
 import getpass
 from rich.console import Console
@@ -24,6 +24,7 @@ global hosttmp
 global porttmp
 fileidx = 1
 oppassword = 123456
+clients_lock = Lock()
 version = "2.3.1"  # 版本号
 version_Verification = True
 password_Login = False
@@ -408,6 +409,7 @@ class Manager:
                             c.sendMsg("由于你的发送速度太快，你将被系统踢出了服务器。", "系统消息")
                             time.sleep(1)
                             c.kick()
+                            break
                         if (time.time() - c.lastsendtime <= 2):
                             c.sendMsg("请稍后发送。", "系统消息")
                             c.last_kick -= 1
@@ -419,18 +421,19 @@ class Manager:
                         print(data)
                         Manager.broadcast(data, c.username)
 
-            except socket.errno as e:
+            except socket.error as e:
                 print("Socket error: %s" % str(e))
             except Exception as e:
                 print("Other exception: %s" % str(e))
             finally:
                 s.print("%s[%s] 断开连接" % (c.ip, c.port), style = "bold yellow")
-                try:
-                    del nameipdic[c.username]
-                    del ipnamedic[("%s-%s" % (c.ip, c.port))]
-                    clients.pop(c.getId())
-                except:
-                    pass
+                with clients_lock:
+                    try:
+                        del nameipdic[c.username]
+                        del ipnamedic[("%s-%s" % (c.ip, c.port))]
+                        clients.pop(c.getId())
+                    except:
+                        pass
                 usercnt = len(nameipdic)
                 Manager.broadcast("用户 " + c.username + " 离开了聊天室，当前在线 " + str(usercnt) + " 人。", "系统消息")
                 c.close()
@@ -438,7 +441,9 @@ class Manager:
             pass
 
     def broadcast(msg,username):
-        for c in clients.values():
+        with clients_lock:
+            snapshot = list(clients.values())
+        for c in snapshot:
             c.sendMsg(msg, username)
 
 def main(host, port, flag):
@@ -461,7 +466,8 @@ def main(host, port, flag):
     while True:
         conn, addr = server.accept()
         c = Manager(conn,addr,"")
-        clients[c.getId()] = c
+        with clients_lock:
+            clients[c.getId()] = c
         t = Thread(target=Manager.new_client, args=(c,))
         t.start()
 
@@ -530,5 +536,5 @@ if __name__ == "__main__":
         config_file.close()
         flag = 1
     finally:
-        os.system("cls")
+        os.system("cls" if os.name == "nt" else "clear")
         main(hosttmp, porttmp, flag)
