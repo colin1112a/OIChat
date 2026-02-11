@@ -229,8 +229,10 @@ class filewindow(object):
 class namewindow(object):
     def click(self):
         global username
-        username = self.lineEdit.text()
-        self.window.close()
+        text = self.lineEdit.text()
+        if len(text) >= 4:
+            username = text
+            self.window.accept()
     def on_return_pressed(self):
         self.click()
     def setupUi(self, Form, version):
@@ -276,7 +278,7 @@ class ipportwindow(object):
         global port
         ip = self.lineEdit.text()
         port = int(self.lineEdit_2.text())
-        self.window.close()
+        self.window.accept()
     def on_return_pressed(self):
         self.click()
     def setupUi(self, Form, version):
@@ -402,54 +404,54 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
-    # 1. IP/端口输入窗口
-    widget = QtWidgets.QWidget()
+    # 1. IP/端口输入对话框
+    dialog1 = QtWidgets.QDialog()
     ipport = ipportwindow()
-    ipport.setupUi(widget, version)
-    widget.show()
-    app.exec_()
+    ipport.setupUi(dialog1, version)
+    if dialog1.exec_() != QtWidgets.QDialog.Accepted:
+        sys.exit(0)
 
-    # 2. 用户名输入窗口（复用同一个 QApplication）
-    while True:
-        widget2 = QtWidgets.QWidget()
-        name = namewindow()
-        name.setupUi(widget2, version)
-        widget2.show()
-        app.exec_()
-        if len(username) >= 4:
-            break
-
-    # 3. 连接服务器
+    # 2. 连接服务器
     ipad = (ip, port)
     try:
         client_socket.connect(ipad)
-        running = True
-
-        # 4. 创建信号对象
-        recv_signal = RecvSignal()
-
-        # 5. 主窗口（在主线程创建）
-        guimainwindow = QtWidgets.QWidget()
-        ui = GUI(guimainwindow, version)
-
-        # 6. 连接信号到 UI 槽函数
-        recv_signal.message.connect(ui.send)
-        recv_signal.password_mode.connect(ui.password_Mode)
-        recv_signal.depassword_mode.connect(ui.depassword_Mode)
-        recv_signal.force_close.connect(ui.force_Close)
-
-        # 7. 启动接收线程
-        t = Thread(target=recv_thread, daemon=True)
-        t.start()
-
-        guimainwindow.show()
-        app.exec_()
     except Exception as e:
-        print("连接失败:", e)
-    finally:
-        running = False
-        try:
-            client_socket.close()
-        except:
-            pass
+        QtWidgets.QMessageBox.critical(None, "连接失败", f"无法连接到 {ip}:{port}\n{e}")
+        sys.exit(1)
+
+    running = True
+
+    # 3. 用户名输入对话框
+    dialog2 = QtWidgets.QDialog()
+    name = namewindow()
+    name.setupUi(dialog2, version)
+    if dialog2.exec_() != QtWidgets.QDialog.Accepted:
+        client_socket.close()
         sys.exit(0)
+
+    # 4. 创建信号对象
+    recv_signal = RecvSignal()
+
+    # 5. 主窗口（在主线程创建）
+    guimainwindow = QtWidgets.QWidget()
+    ui = GUI(guimainwindow, version)
+
+    # 6. 连接信号到 UI 槽函数
+    recv_signal.message.connect(ui.send)
+    recv_signal.password_mode.connect(ui.password_Mode)
+    recv_signal.depassword_mode.connect(ui.depassword_Mode)
+    recv_signal.force_close.connect(ui.force_Close)
+
+    # 7. 启动接收线程
+    t = Thread(target=recv_thread, daemon=True)
+    t.start()
+
+    guimainwindow.show()
+    app.exec_()
+
+    running = False
+    try:
+        client_socket.close()
+    except:
+        pass
+    sys.exit(0)
