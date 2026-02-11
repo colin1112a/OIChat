@@ -34,8 +34,7 @@ jobs:
         run: >
           pyinstaller --onefile --console
           --name OIChat-Server
-          --collect-data rich
-          --hidden-import rich._unicode_data
+          --collect-all rich
           server.py
 
       - name: Upload artifacts
