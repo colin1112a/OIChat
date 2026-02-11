@@ -2,4 +2,5 @@ rich
 qdarkstyle
 PyQt5
 pyinstaller
+Pillow
 winotify; sys_platform == 'win32'
